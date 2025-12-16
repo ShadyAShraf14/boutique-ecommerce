@@ -8,6 +8,12 @@ use Illuminate\Http\Request;
 
 class WishlistController extends Controller
 {
+    public function __construct()
+    {
+        // كل الوِش ليست لازم Login
+        $this->middleware('auth');
+    }
+
     public function index()
     {
         // array of product IDs من السيشن
@@ -40,5 +46,20 @@ class WishlistController extends Controller
         session(['wishlist' => $wishlist]);
 
         return back()->with('success', $message);
+    }
+
+    /**
+     * Remove product from wishlist (لو بتستخدم DELETE route)
+     */
+    public function remove(Product $product)
+    {
+        $wishlist = session('wishlist', []);
+
+        if (in_array($product->id, $wishlist)) {
+            $wishlist = array_values(array_diff($wishlist, [$product->id]));
+            session(['wishlist' => $wishlist]);
+        }
+
+        return back()->with('success', 'Product removed from wishlist');
     }
 }

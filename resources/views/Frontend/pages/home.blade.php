@@ -139,8 +139,8 @@
     .newsletter-section {
         background: #ffffff;
         padding: 2.75rem 0;
-        margin-top: -1px;               /* يكمل البوردر اللي فوقه */
-        margin-bottom: 3rem;            /* مسافة مريحة قبل الفوتر */
+        margin-top: -1px;
+        margin-bottom: 3rem;
         box-shadow: 0 -6px 25px rgba(0,0,0,0.03);
         position: relative;
         z-index: 2;
@@ -243,10 +243,8 @@
                     $img = $product->getFirstMediaUrl('image')
                         ?: asset('frontend-assets/img/default-product.jpg');
 
-                    $badges    = ['new', 'sale', 'sold'];
-                    $badgeType = $badges[$loop->index % 3];
-
                     $isFav = in_array($product->id, $wishlistIds);
+                    $isSold = $product->isSoldOut();
                 @endphp
 
                 <div class="col-6 col-md-3">
@@ -257,37 +255,63 @@
                                 <img src="{{ $img }}" alt="{{ $product->name }}">
                             </a>
 
-                            <span class="badge-flag {{ $badgeType }}">
-                                {{ strtoupper($badgeType) }}
-                            </span>
+                            @if($product->isSoldOut())
+                                <span class="badge-flag sold">SOLD</span>
+                            @elseif($product->isOnSale())
+                                <span class="badge-flag sale">SALE</span>
+                            @elseif($product->isNew(7))
+                                <span class="badge-flag new">NEW</span>
+                            @endif
 
                             <div class="position-absolute bottom-0 start-0 end-0 pb-3
                                         d-flex justify-content-center gap-2 overlay-actions">
 
                                 {{-- Wishlist toggle --}}
-                                <form action="{{ route('frontend.wishlist.add', $product->id) }}"
-                                      method="POST"
-                                      class="d-inline">
-                                    @csrf
-                                    <button type="submit"
-                                            class="btn btn-sm btn-light d-flex align-items-center justify-content-center wishlist-btn {{ $isFav ? 'is-fav' : '' }}"
-                                            style="width:38px;height:38px;">
-                                        <span style="font-size:16px;">
-                                            {!! $isFav ? '♥' : '♡' !!}
-                                        </span>
-                                    </button>
-                                </form>
+                                @auth
+                                    <form action="{{ route('frontend.wishlist.add', $product->id) }}"
+                                          method="POST"
+                                          class="d-inline">
+                                        @csrf
+                                        <button type="submit"
+                                                class="btn btn-sm btn-light d-flex align-items-center justify-content-center wishlist-btn {{ $isFav ? 'is-fav' : '' }}"
+                                                style="width:38px;height:38px;">
+                                            <span style="font-size:16px;">
+                                                {!! $isFav ? '♥' : '♡' !!}
+                                            </span>
+                                        </button>
+                                    </form>
+                                @endauth
+
+                                @guest
+                                    <a href="{{ route('login') }}"
+                                       class="btn btn-sm btn-light d-flex align-items-center justify-content-center"
+                                       style="width:38px;height:38px;"
+                                       title="Login first">
+                                        <span style="font-size:16px;">♡</span>
+                                    </a>
+                                @endguest
 
                                 {{-- Add to cart --}}
-                                <form action="{{ route('frontend.cart.add', $product->id) }}"
-                                      method="POST"
-                                      class="d-inline">
-                                    @csrf
-                                    <input type="hidden" name="qty" value="1">
-                                    <button type="submit" class="btn btn-sm btn-dark px-3">
+                                @auth
+                                    <form action="{{ route('frontend.cart.add', $product->id) }}"
+                                          method="POST"
+                                          class="d-inline">
+                                        @csrf
+                                        <input type="hidden" name="qty" value="1">
+                                        <button type="submit" class="btn btn-sm btn-dark px-3"
+                                                {{ $isSold ? 'disabled' : '' }}>
+                                            Add to cart
+                                        </button>
+                                    </form>
+                                @endauth
+
+                                @guest
+                                    <a href="{{ route('login') }}"
+                                       class="btn btn-sm btn-dark px-3 {{ $isSold ? 'disabled' : '' }}"
+                                       @if($isSold) aria-disabled="true" @endif>
                                         Add to cart
-                                    </button>
-                                </form>
+                                    </a>
+                                @endguest
 
                                 {{-- Quick View --}}
                                 <button type="button"
@@ -316,7 +340,13 @@
                             <p class="text-muted small mb-1">
                                 {{ $product->category->name ?? 'Uncategorized' }}
                             </p>
+
                             <p class="fw-bold mb-0">
+                                @if($product->isOnSale())
+                                    <span class="text-muted text-decoration-line-through me-1">
+                                        ${{ number_format($product->compare_price, 2) }}
+                                    </span>
+                                @endif
                                 ${{ number_format($product->price, 2) }}
                             </p>
                         </div>
@@ -398,21 +428,48 @@
             <p class="h5 mb-3" id="qvPrice"></p>
             <p class="small text-muted" id="qvDesc"></p>
 
-            <form id="qvAddToCartForm" method="POST">
-                @csrf
+            {{-- Add to cart inside modal --}}
+            @auth
+                <form id="qvAddToCartForm" method="POST">
+                    @csrf
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="me-2 small text-uppercase text-muted">Quantity</span>
+                        <input type="number" name="qty" min="1" value="1"
+                               class="form-control form-control-sm" style="width:80px;">
+                        <button class="btn btn-dark btn-sm ms-2" type="submit">
+                            Add to cart
+                        </button>
+                    </div>
+                </form>
+            @endauth
+
+            @guest
                 <div class="d-flex align-items-center mb-3">
                     <span class="me-2 small text-uppercase text-muted">Quantity</span>
-                    <input type="number" name="qty" min="1" value="1"
+                    <input type="number" value="1" disabled
                            class="form-control form-control-sm" style="width:80px;">
-                    <button class="btn btn-dark btn-sm ms-2" type="submit">
+                    <a class="btn btn-dark btn-sm ms-2" href="{{ route('login') }}">
                         Add to cart
-                    </button>
+                    </a>
                 </div>
-            </form>
+            @endguest
 
-            <button class="btn btn-link p-0 small">
-                ♥ Add to wishlist
-            </button>
+            {{-- Wishlist in modal (كان زرار وهمي) --}}
+            @auth
+                <form id="qvAddToWishlistForm" method="POST" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-link p-0 small">
+                        ♥ Add to wishlist
+                    </button>
+                </form>
+            @endauth
+
+            @guest
+                <a href="{{ route('login') }}" class="btn btn-link p-0 small">
+                    ♥ Add to wishlist
+                </a>
+            @endguest
+
           </div>
         </div>
       </div>
@@ -438,8 +495,14 @@ document.addEventListener('DOMContentLoaded', function () {
         qvModal.querySelector('#qvDesc').textContent  = desc;
         qvModal.querySelector('#qvImage').setAttribute('src', img);
 
-        var form = qvModal.querySelector('#qvAddToCartForm');
-        form.setAttribute('action', '{{ url('/cart/add') }}/' + id);
+        // Action URLs
+        @auth
+            var form = qvModal.querySelector('#qvAddToCartForm');
+            if (form) form.setAttribute('action', '{{ url('/cart/add') }}/' + id);
+
+            var wForm = qvModal.querySelector('#qvAddToWishlistForm');
+            if (wForm) wForm.setAttribute('action', '{{ url('/wishlist/add') }}/' + id);
+        @endauth
     });
 });
 </script>

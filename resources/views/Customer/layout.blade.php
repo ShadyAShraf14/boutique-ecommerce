@@ -6,7 +6,6 @@
 @php
     $user = auth()->user();
 @endphp
-
 <style>
     .account-hero {
         background: #f8f9fb;

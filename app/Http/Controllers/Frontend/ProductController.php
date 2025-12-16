@@ -9,17 +9,13 @@ use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
-    /**
-     * Shop page (قائمة المنتجات مع الفلترة والسورت)
-     */
     public function index(Request $request)
     {
-        $query = Product::with('category')
-            ->where('is_active', true);
+        // الأساس الاحترافي
+        $query = Product::with('category')->shop();
 
-        // فلترة بالكـاتيجوري عن طريق ?category=slug
+        // فلترة category via ?category=slug
         $activeCategory = null;
-
         if ($request->filled('category')) {
             $categorySlug = $request->query('category');
 
@@ -28,6 +24,19 @@ class ProductController extends Controller
             });
 
             $activeCategory = Category::where('slug', $categorySlug)->first();
+        }
+
+        // فلترة السعر: ?min_price=..&max_price=..
+        if ($request->filled('min_price') || $request->filled('max_price')) {
+            $min = (float) $request->get('min_price', 0);
+            $max = (float) $request->get('max_price', 999999999);
+
+            $query->whereBetween('price', [$min, $max]);
+        }
+
+        // متاح فقط: ?in_stock=1
+        if ($request->boolean('in_stock')) {
+            $query->inStock();
         }
 
         // السورت
@@ -46,13 +55,15 @@ class ProductController extends Controller
             case 'name_desc':
                 $query->orderBy('name', 'desc');
                 break;
-            default: // latest
+            default:
                 $query->latest();
                 break;
         }
 
-        $products   = $query->paginate(12)->withQueryString();
-        $categories = Category::orderBy('name')->get();
+        $products = $query->paginate(12)->withQueryString();
+
+        // نعرض فقط الكاتيجوريز الفعالة
+        $categories = Category::where('is_active', true)->orderBy('name')->get();
 
         return view('Frontend.pages.shop', [
             'products'       => $products,
@@ -62,50 +73,43 @@ class ProductController extends Controller
         ]);
     }
 
-    /**
-     * Product details page
-     */
-public function show($slug)
-{
-    $product = Product::with([
-            'category',
-            'tags',
-            'reviews' => function ($q) {
-                $q->where('is_approved', true)->latest();
-            },
-            'reviews.user',
-        ])
-        ->where('slug', $slug)
-        ->firstOrFail();
+    public function show($slug)
+    {
+        // يخضع لنفس قواعد الـ shop
+        $product = Product::with([
+                'category',
+                'tags',
+                'reviews' => function ($q) {
+                    $q->where('is_approved', true)->latest();
+                },
+                'reviews.user',
+            ])
+            ->shop()
+            ->where('slug', $slug)
+            ->firstOrFail();
 
-    // كل الميديا من الكولكشن الموحدة "image"
-    $mediaItems = $product->getMedia('image');
+        $mediaItems = $product->getMedia('image');
+        $fallbackImage = asset('frontend-assets/img/default-product.jpg');
+        $mainImage = $product->getFirstMediaUrl('image') ?: $fallbackImage;
 
-    $fallbackImage = asset('frontend-assets/img/default-product.jpg');
+        $relatedProducts = Product::shop()
+            ->where('category_id', $product->category_id)
+            ->where('id', '!=', $product->id)
+            ->take(4)
+            ->get();
 
-    // صورة رئيسية
-    $mainImage = $product->getFirstMediaUrl('image')
-        ?: $fallbackImage;
+        $reviews      = $product->reviews;
+        $avgRating    = $reviews->avg('rating') ?: 0;
+        $reviewsCount = $reviews->count();
 
-    // Related products
-    $relatedProducts = Product::where('category_id', $product->category_id)
-        ->where('id', '!=', $product->id)
-        ->take(4)
-        ->get();
-
-    // الريفيوز + المتوسط + العدد
-    $reviews      = $product->reviews;
-    $avgRating    = $reviews->avg('rating') ?: 0;
-    $reviewsCount = $reviews->count();
-
-    return view('Frontend.pages.product-show', compact(
-        'product',
-        'mediaItems',
-        'relatedProducts',
-        'mainImage',
-        'reviews',
-        'avgRating',
-        'reviewsCount'
-    ));
-}
+        return view('Frontend.pages.product-show', compact(
+            'product',
+            'mediaItems',
+            'relatedProducts',
+            'mainImage',
+            'reviews',
+            'avgRating',
+            'reviewsCount'
+        ));
+    }
 }

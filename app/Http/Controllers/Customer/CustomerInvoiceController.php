@@ -38,7 +38,6 @@ class CustomerInvoiceController extends Controller
 
         $name = ($invoice->invoice_number ?: 'invoice') . '.pdf';
 
-        // response() بيبعت الهيدر Content-Disposition: inline
         return Storage::disk('public')->response(
             $invoice->pdf_path,
             $name,

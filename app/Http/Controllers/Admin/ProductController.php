@@ -11,7 +11,6 @@ use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
-    // قائمة المنتجات
     public function index()
     {
         $products = Product::with(['category', 'tags'])
@@ -21,7 +20,6 @@ class ProductController extends Controller
         return view('Backend.pages.products.index', compact('products'));
     }
 
-    // فورم الإضافة
     public function create()
     {
         $categories = Category::orderBy('name')->get();
@@ -30,49 +28,53 @@ class ProductController extends Controller
         return view('Backend.pages.products.create', compact('categories', 'tags'));
     }
 
-    // حفظ المنتج
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'        => 'required|string|max:255',
-            'category_id' => 'required|exists:categories,id',
-            'description' => 'nullable|string',
-            'price'       => 'required|numeric|min:0',
-            'is_active'   => 'nullable|boolean',
-            'tags'        => 'nullable|array',
-            'tags.*'      => 'exists:tags,id',
-            'image'       => 'nullable|image|max:4096',
+            'name'          => 'required|string|max:255',
+            'category_id'   => 'required|exists:categories,id',
+            'description'   => 'nullable|string',
+            'price'         => 'required|numeric|min:0',
+            'compare_price' => 'nullable|numeric|min:0',
+            'quantity'      => 'required|integer|min:0',
+
+            'is_active'     => 'nullable|boolean',
+            'show_in_shop'  => 'nullable|boolean',
+            'is_trending'   => 'nullable|boolean',
+
+            'tags'          => 'nullable|array',
+            'tags.*'        => 'exists:tags,id',
+            'image'         => 'nullable|image|max:4096',
         ]);
 
-        $data['slug']      = Str::slug($data['name']);
-        $data['is_active'] = $request->boolean('is_active');
+        $data['slug']         = Str::slug($data['name']);
+        $data['is_active']    = $request->boolean('is_active');
+        $data['show_in_shop'] = $request->boolean('show_in_shop');
+        $data['is_trending']  = $request->boolean('is_trending');
+
+        // حماية: لو compare_price <= price نخليها null (مش Sale)
+        if (!empty($data['compare_price']) && (float)$data['compare_price'] <= (float)$data['price']) {
+            $data['compare_price'] = null;
+        }
 
         $product = Product::create($data);
 
-        // صورة Spatie – كولكشن موحّدة اسمها "image"
         if ($request->hasFile('image')) {
-            $product->addMediaFromRequest('image')
-                    ->toMediaCollection('image');
+            $product->addMediaFromRequest('image')->toMediaCollection('image');
         }
 
-        // Tags pivot
-        if (!empty($data['tags'])) {
-            $product->tags()->sync($data['tags']);
-        }
+        $product->tags()->sync($data['tags'] ?? []);
 
         return redirect()->route('admin.products.index')
             ->with('success', 'Product created successfully.');
     }
 
-    // عرض منتج واحد (اختياري في الأدمن)
     public function show(Product $product)
     {
         $product->load(['category', 'tags']);
-
         return view('Backend.pages.products.show', compact('product'));
     }
 
-    // فورم التعديل
     public function edit(Product $product)
     {
         $categories = Category::orderBy('name')->get();
@@ -82,41 +84,47 @@ class ProductController extends Controller
         return view('Backend.pages.products.edit', compact('product', 'categories', 'tags'));
     }
 
-    // تحديث المنتج
     public function update(Request $request, Product $product)
     {
         $data = $request->validate([
-            'name'        => 'required|string|max:255',
-            'category_id' => 'required|exists:categories,id',
-            'description' => 'nullable|string',
-            'price'       => 'required|numeric|min:0',
-            'is_active'   => 'nullable|boolean',
-            'tags'        => 'nullable|array',
-            'tags.*'      => 'exists:tags,id',
-            'image'       => 'nullable|image|max:4096',
+            'name'          => 'required|string|max:255',
+            'category_id'   => 'required|exists:categories,id',
+            'description'   => 'nullable|string',
+            'price'         => 'required|numeric|min:0',
+            'compare_price' => 'nullable|numeric|min:0',
+            'quantity'      => 'required|integer|min:0',
+
+            'is_active'     => 'nullable|boolean',
+            'show_in_shop'  => 'nullable|boolean',
+            'is_trending'   => 'nullable|boolean',
+
+            'tags'          => 'nullable|array',
+            'tags.*'        => 'exists:tags,id',
+            'image'         => 'nullable|image|max:4096',
         ]);
 
-        $data['slug']      = Str::slug($data['name']);
-        $data['is_active'] = $request->boolean('is_active');
+        $data['slug']         = Str::slug($data['name']);
+        $data['is_active']    = $request->boolean('is_active');
+        $data['show_in_shop'] = $request->boolean('show_in_shop');
+        $data['is_trending']  = $request->boolean('is_trending');
+
+        if (!empty($data['compare_price']) && (float)$data['compare_price'] <= (float)$data['price']) {
+            $data['compare_price'] = null;
+        }
 
         $product->update($data);
 
-        // لو فيه صورة جديدة امسح القديمة من "image" وحط الجديدة
         if ($request->hasFile('image')) {
             $product->clearMediaCollection('image');
-
-            $product->addMediaFromRequest('image')
-                    ->toMediaCollection('image');
+            $product->addMediaFromRequest('image')->toMediaCollection('image');
         }
 
-        // Tags
         $product->tags()->sync($data['tags'] ?? []);
 
         return redirect()->route('admin.products.index')
             ->with('success', 'Product updated successfully.');
     }
 
-    // حذف المنتج
     public function destroy(Product $product)
     {
         $product->clearMediaCollection('image');

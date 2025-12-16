@@ -24,6 +24,7 @@
 
         @php
             $admin = auth()->user();
+
             $unreadNotifications = $admin
                 ? $admin->unreadNotifications()->latest()->take(5)->get()
                 : collect();
@@ -57,35 +58,76 @@
                 <div id="notif-list">
                     @forelse($unreadNotifications as $notification)
                         @php
-                            $data = $notification->data;
+                            $data = (array) $notification->data;
+
+                            // حالة خاصة: لو إشعار "طلب مدفوع" عندك بنفس المفاتيح القديمة
+                            $isPaidOrder =
+                                (($data['type'] ?? null) === 'admin_new_paid_order')
+                                || (($data['event'] ?? null) === 'admin_new_paid_order');
+
+                            // مفاتيح شائعة للعنوان والرسالة
+                            $title = $data['title'] ?? $data['subject'] ?? $data['name'] ?? null;
+                            $msg   = $data['message'] ?? $data['body'] ?? $data['text'] ?? $data['content'] ?? null;
+
+                            // لو مفيش title/msg: هات أول قيمة نصية من الداتا
+                            if (!$title && !$msg) {
+                                foreach ($data as $v) {
+                                    if (is_string($v) && trim($v) !== '') {
+                                        $msg = $v;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // fallback أخير: اسم كلاس الإشعار بدل كلمة Notification
+                            $fallbackText = class_basename($notification->type);
+
+                            // نص السطر الرئيسي
+                            $line1 = $title
+                                ?? ($msg ? \Illuminate\Support\Str::limit($msg, 80) : $fallbackText);
+
+                            // سطر إضافي لو عندنا title + msg
+                            $line2 = ($msg && $title)
+                                ? \Illuminate\Support\Str::limit($msg, 120)
+                                : null;
                         @endphp
 
                         <a class="dropdown-item d-flex align-items-center"
                            href="{{ route('dashboard.notifications.index') }}">
+
                             <div class="mr-3">
                                 <div class="icon-circle bg-primary">
                                     <i class="fas fa-shopping-bag text-white"></i>
                                 </div>
                             </div>
-                            <div>
+
+                            <div style="min-width: 0;">
                                 <div class="small text-gray-500">
                                     {{ $notification->created_at->diffForHumans() }}
                                 </div>
 
-                                @if(($data['type'] ?? null) === 'admin_new_paid_order')
+                                @if($isPaidOrder)
                                     <span class="font-weight-bold">
-                                        New paid order #{{ $data['order_id'] ?? '' }}
+                                        New paid order #{{ $data['order_id'] ?? $data['order'] ?? '' }}
                                     </span>
-                                    <div class="small">
-                                        Customer: {{ $data['customer_name'] ?? 'Customer' }}
-                                        – Total: ${{ number_format($data['order_total'] ?? 0, 2) }}
+
+                                    <div class="small text-gray-700">
+                                        Customer: {{ $data['customer_name'] ?? $data['customer'] ?? 'Customer' }}
+                                        – Total: ${{ number_format($data['order_total'] ?? $data['total'] ?? 0, 2) }}
                                     </div>
                                 @else
                                     <span class="font-weight-bold">
-                                        {{ $data['type'] ?? 'Notification' }}
+                                        {{ $line1 }}
                                     </span>
+
+                                    @if($line2)
+                                        <div class="small text-gray-700">
+                                            {{ $line2 }}
+                                        </div>
+                                    @endif
                                 @endif
                             </div>
+
                         </a>
                     @empty
                         <div class="dropdown-item text-center small text-gray-500 no-notifications-placeholder">
@@ -104,7 +146,7 @@
         <div class="topbar-divider d-none d-sm-block"></div>
 
         @auth
-            <!-- Nav Item - User Information (رجّعته زي ما كان) -->
+            <!-- Nav Item - User Information -->
             <li class="nav-item dropdown no-arrow">
                 <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

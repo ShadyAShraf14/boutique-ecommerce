@@ -8,6 +8,13 @@ use Illuminate\Http\Request;
 
 class CartController extends Controller
 {
+    public function __construct()
+    {
+        // نقفل الإضافة/التعديل/الحذف لغير المسجلين
+        // ونسيب عرض صفحة الكارت public (لو عايزها كذلك)
+        $this->middleware('auth')->except(['index']);
+    }
+
     protected function getCart(): array
     {
         // شكل الكارت: [ product_id => [id, name, price, qty, image] ]
