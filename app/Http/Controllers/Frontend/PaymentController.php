@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
+use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\User;
 use App\Notifications\AdminNewPaidOrderNotification;
 use App\Notifications\CustomerOrderPaidNotification;
 use App\Services\InvoiceService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Srmklive\PayPal\Services\PayPal as PayPalClient;
@@ -177,17 +179,57 @@ class PaymentController extends Controller
     }
 
     /**
-     * ✅ Paid + ✅ Generate invoice automatically + notifications
+     * ✅ Paid + ✅ Generate invoice + ✅ Notifications + ✅ Increase coupon used_count ONCE
      */
     protected function markOrderAsPaid(int $localOrderId, array $paypalData = [])
     {
-        $order = Order::findOrFail($localOrderId);
+        $order = null;
 
-        // ✅ مهم: خزّن paypalData في order كمان
-        $order->update(array_merge([
-            'payment_status' => 'paid',
-            'status'         => 'processing',
-        ], $paypalData));
+        DB::beginTransaction();
+
+        try {
+            // lock order row to avoid double-callback increments
+            $order = Order::lockForUpdate()->findOrFail($localOrderId);
+
+            // لو اتعمله paid قبل كده (callback اتضرب مرتين) → مفيش تكرار
+            if ($order->payment_status === 'paid') {
+                DB::commit();
+                return redirect()
+                    ->route('customer.orders.show', $order->id)
+                    ->with('success', 'Payment already completed.');
+            }
+
+            // ✅ Update order as paid
+            $order->update(array_merge([
+                'payment_status' => 'paid',
+                'status'         => 'processing',
+            ], $paypalData));
+
+            // ✅ Increase coupon used_count once (only if there's a coupon in session + discount > 0)
+            $couponCode = session('coupon_code');
+            if ($couponCode && (float) $order->discount > 0) {
+                $coupon = Coupon::where('code', strtoupper(trim($couponCode)))->lockForUpdate()->first();
+
+                if ($coupon) {
+                    // safety: don't exceed max_uses
+                    if (is_null($coupon->max_uses) || $coupon->used_count < $coupon->max_uses) {
+                        $coupon->increment('used_count');
+                    }
+                }
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            Log::error('markOrderAsPaid failed: '.$e->getMessage(), [
+                'order_id' => $localOrderId,
+            ]);
+
+            return redirect()
+                ->route('customer.orders.show', $localOrderId)
+                ->with('error', 'Payment completed but failed to finalize order. Please contact support.');
+        }
 
         // ✅ توليد الفاتورة تلقائي (بدون تكرار)
         try {
@@ -216,8 +258,14 @@ class PaymentController extends Controller
             $order->user->notify(new CustomerOrderPaidNotification($order));
         }
 
+        // ✅ امسح كل Sessions الخاصة بالكارت/الـ checkout/الكوبون
         session()->forget([
             'cart',
+            'coupon_code',
+            'checkout_address_id',
+            'checkout_shipping_method_id',
+            'checkout_payment_method',
+
             'paypal_order_id',
             'local_order_id',
         ]);

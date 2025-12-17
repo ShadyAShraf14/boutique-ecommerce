@@ -108,30 +108,37 @@
                 @endif
             </div>
 
-            {{-- إجمالي الكارت --}}
-{{-- إجمالي الكارت --}}
 <div class="col-md-4">
     <h5 class="mb-3">Cart total</h5>
 
     <div class="border p-3">
 
-        {{-- Subtotal / Total (لسه بدون خصم في صفحة الكارت) --}}
         <div class="d-flex justify-content-between mb-2">
             <span>Subtotal</span>
             <strong>${{ number_format($subtotal, 2) }}</strong>
         </div>
 
+        @if(!empty($discount) && $discount > 0 && !empty($coupon))
+            <div class="d-flex justify-content-between mb-2 text-success">
+                <span>Discount ({{ $coupon->code }})</span>
+                <strong>- ${{ number_format($discount, 2) }}</strong>
+            </div>
+
+            <form action="{{ route('frontend.checkout.removeCoupon') }}" method="POST" class="mb-2">
+                @csrf
+                <button class="btn btn-link p-0 text-danger small" type="submit">
+                    Remove coupon
+                </button>
+            </form>
+        @endif
+
         <div class="d-flex justify-content-between mb-3">
             <span>Total</span>
-            <strong>${{ number_format($subtotal, 2) }}</strong>
+            <strong>${{ number_format($total, 2) }}</strong>
         </div>
 
-        {{-- FORM: Apply coupon → يروح لـ CheckoutController@applyCoupon --}}
-        <form action="{{ route('frontend.checkout.applyCoupon') }}"
-              method="POST"
-              class="mb-3">
+        <form action="{{ route('frontend.checkout.applyCoupon') }}" method="POST" class="mb-3">
             @csrf
-
             <div class="input-group input-group-sm">
                 <input type="text"
                        name="coupon_code"
@@ -144,12 +151,9 @@
             </div>
         </form>
 
-        {{-- زرار الذهاب لصفحة الـ Checkout --}}
-        <a href="{{ route('frontend.checkout.index') }}"
-           class="btn btn-outline-dark w-100">
+        <a href="{{ route('frontend.checkout.index') }}" class="btn btn-outline-dark w-100">
             Proceed to checkout
         </a>
-
     </div>
 </div>
 

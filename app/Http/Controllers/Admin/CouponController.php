@@ -1,19 +1,16 @@
 <?php
 
-
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CouponRequest;
 use App\Models\Coupon;
-use Illuminate\Http\Request;
 
 class CouponController extends Controller
 {
     public function index()
     {
         $coupons = Coupon::latest()->paginate(15);
-
         return view('Backend.pages.coupons.index', compact('coupons'));
     }
 
@@ -25,7 +22,9 @@ class CouponController extends Controller
     public function store(CouponRequest $request)
     {
         $data = $request->validated();
-        $data['is_active'] = $request->boolean('is_active');
+
+        $data['is_active']   = $request->boolean('is_active');
+        $data['used_count']  = $data['used_count'] ?? 0; // safety
 
         Coupon::create($data);
 

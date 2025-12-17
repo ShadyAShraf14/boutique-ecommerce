@@ -12,13 +12,11 @@
             </h6>
 
             <div>
-                <a href="{{ route('admin.coupons.edit', $coupon) }}"
-                   class="btn btn-sm btn-outline-primary">
+                <a href="{{ route('admin.coupons.edit', $coupon) }}" class="btn btn-sm btn-outline-primary">
                     Edit
                 </a>
 
-                <a href="{{ route('admin.coupons.index') }}"
-                   class="btn btn-sm btn-secondary">
+                <a href="{{ route('admin.coupons.index') }}" class="btn btn-sm btn-secondary">
                     Back
                 </a>
             </div>
@@ -33,9 +31,7 @@
 
             <div class="row mb-2">
                 <div class="col-md-3 font-weight-bold">Type:</div>
-                <div class="col-md-9">
-                    {{ ucfirst($coupon->type) }}
-                </div>
+                <div class="col-md-9">{{ ucfirst($coupon->type) }}</div>
             </div>
 
             <div class="row mb-2">
@@ -52,59 +48,46 @@
             <div class="row mb-2">
                 <div class="col-md-3 font-weight-bold">Min Order Total:</div>
                 <div class="col-md-9">
-                    @if($coupon->min_order_total)
-                        {{ number_format($coupon->min_order_total, 2) }}
-                    @else
-                        -
-                    @endif
+                    {{ $coupon->min_order_total ? number_format($coupon->min_order_total, 2) : '-' }}
                 </div>
             </div>
 
             <div class="row mb-2">
                 <div class="col-md-3 font-weight-bold">Usage:</div>
                 <div class="col-md-9">
-                    {{ $coupon->used_count }} /
-                    {{ $coupon->max_uses ?? '∞' }}
+                    {{ $coupon->used_count }} / {{ $coupon->max_uses ?? '∞' }}
                 </div>
             </div>
 
             <div class="row mb-2">
                 <div class="col-md-3 font-weight-bold">Status:</div>
                 <div class="col-md-9">
-                    <span class="badge badge-{{ $coupon->is_active ? 'success' : 'secondary' }}">
-                        {{ $coupon->is_active ? 'Active' : 'Inactive' }}
+                    <span class="badge badge-{{ $coupon->status_badge_class }}">
+                        {{ $coupon->status_label }}
                     </span>
                 </div>
             </div>
 
             <div class="row mb-2">
                 <div class="col-md-3 font-weight-bold">Valid From:</div>
-                <div class="col-md-9">
-                    {{ $coupon->starts_at?->format('Y-m-d H:i') ?? '-' }}
-                </div>
+                <div class="col-md-9">{{ $coupon->starts_at?->format('Y-m-d H:i') ?? '-' }}</div>
             </div>
 
             <div class="row mb-2">
                 <div class="col-md-3 font-weight-bold">Valid To:</div>
-                <div class="col-md-9">
-                    {{ $coupon->ends_at?->format('Y-m-d H:i') ?? '-' }}
-                </div>
+                <div class="col-md-9">{{ $coupon->ends_at?->format('Y-m-d H:i') ?? '-' }}</div>
             </div>
 
             <hr>
 
             <div class="row mb-2">
                 <div class="col-md-3 font-weight-bold">Created at:</div>
-                <div class="col-md-9">
-                    {{ $coupon->created_at->format('Y-m-d H:i') }}
-                </div>
+                <div class="col-md-9">{{ $coupon->created_at->format('Y-m-d H:i') }}</div>
             </div>
 
             <div class="row mb-4">
                 <div class="col-md-3 font-weight-bold">Updated at:</div>
-                <div class="col-md-9">
-                    {{ $coupon->updated_at->format('Y-m-d H:i') }}
-                </div>
+                <div class="col-md-9">{{ $coupon->updated_at->format('Y-m-d H:i') }}</div>
             </div>
 
             <form action="{{ route('admin.coupons.destroy', $coupon) }}"

@@ -1,6 +1,5 @@
 <?php
 
-
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
@@ -10,40 +9,59 @@ class CouponRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // لو حابة تضيفي صلاحيات هنا ممكن
-        return true;
+        return true; // لو عندك Policies عدّلها
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('code')) {
+            $this->merge([
+                'code' => strtoupper(trim((string) $this->input('code'))),
+            ]);
+        }
+
+        if ($this->has('type')) {
+            $this->merge([
+                'type' => strtolower(trim((string) $this->input('type'))),
+            ]);
+        }
     }
 
     public function rules(): array
     {
-        $coupon = $this->route('coupon'); // ممكن يكون id أو Model
-
-        $couponId = is_object($coupon) ? $coupon->id : $coupon;
+        $couponId = $this->route('coupon')?->id; // in edit route-model-binding
 
         return [
             'code' => [
                 'required',
                 'string',
-                'max:50',
+                'max:255',
                 Rule::unique('coupons', 'code')->ignore($couponId),
             ],
-            'type' => ['required', Rule::in(['fixed', 'percent'])],
-            'value' => ['required', 'numeric', 'min:0.01'],
-            'min_order_total' => ['nullable', 'numeric', 'min:0'],
-            'max_uses' => ['nullable', 'integer', 'min:1'],
-            'starts_at' => ['nullable', 'date'],
-            'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
-            'is_active' => ['nullable', 'boolean'],
-        ];
-    }
 
-    public function messages(): array
-    {
-        return [
-            'code.required' => 'الكود مطلوب.',
-            'code.unique'   => 'هذا الكوبون موجود بالفعل.',
-            'type.in'       => 'نوع الكوبون لازم يكون fixed أو percent.',
-            'ends_at.after_or_equal' => 'تاريخ الانتهاء لازم يكون بعد أو مساوي لتاريخ البداية.',
+            'type' => ['required', Rule::in(['fixed', 'percent'])],
+
+            'value' => [
+                'required',
+                'numeric',
+                'min:0.01',
+                function ($attribute, $value, $fail) {
+                    $type = $this->input('type');
+                    if ($type === 'percent' && (float)$value > 100) {
+                        $fail('Percent value cannot be greater than 100.');
+                    }
+                },
+            ],
+
+            'min_order_total' => ['nullable', 'numeric', 'min:0'],
+
+            'max_uses'   => ['nullable', 'integer', 'min:1'],
+            'used_count' => ['nullable', 'integer', 'min:0'],
+
+            'starts_at' => ['nullable', 'date'],
+            'ends_at'   => ['nullable', 'date', 'after_or_equal:starts_at'],
+
+            'is_active' => ['nullable', 'boolean'],
         ];
     }
 }

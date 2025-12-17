@@ -6,27 +6,27 @@ use Illuminate\Support\Facades\Route;
 // -------------------- Frontend Controllers --------------------
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Admin\CityController;
-use App\Http\Controllers\Frontend\WishlistController;
-use App\Http\Controllers\Frontend\CheckoutController;
-use App\Http\Controllers\Frontend\PaymentController;
-use App\Http\Controllers\Frontend\OmnipayPaymentController;
-use App\Http\Controllers\Frontend\ReviewController as FrontReviewController;
-use App\Http\Controllers\Customer\AddressController;
-use App\Http\Controllers\Frontend\FrontNotificationController;
-use App\Http\Controllers\Customer\CustomerInvoiceController;
-
-// -------------------- Admin Controllers -----------------------
-use App\Http\Controllers\Admin\Auth\LoginController as AdminLoginController;
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Admin\StateController;
 use App\Http\Controllers\Admin\CountryController;
 use App\Http\Controllers\Frontend\CartController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\SupervisorController;
+use App\Http\Controllers\Customer\AddressController;
+
+// -------------------- Admin Controllers -----------------------
+use App\Http\Controllers\Frontend\PaymentController;
 use App\Http\Controllers\Admin\UserAddressController;
+use App\Http\Controllers\Frontend\CheckoutController;
+use App\Http\Controllers\Frontend\WishlistController;
+use App\Http\Controllers\Admin\ShippingMethodController;
 use App\Http\Controllers\Admin\AccountSettingsController;
 use App\Http\Controllers\Admin\ShippingCompanyController;
-use App\Http\Controllers\Admin\ShippingMethodController;
+use App\Http\Controllers\Admin\AdminNotificationController;
+use App\Http\Controllers\Frontend\OmnipayPaymentController;
+use App\Http\Controllers\Customer\CustomerInvoiceController;
+use App\Http\Controllers\Frontend\FrontNotificationController;
 
 use App\Http\Controllers\Admin\TagController as AdminTagController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
@@ -35,12 +35,13 @@ use App\Http\Controllers\Frontend\HomeController as FrontHomeController;
 use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
-use App\Http\Controllers\Admin\AdminNotificationController;
+use App\Http\Controllers\Admin\Auth\LoginController as AdminLoginController;
 
 // -------------------- Supervisor Controllers ------------------
-use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
+use App\Http\Controllers\Frontend\ReviewController as FrontReviewController;
 
 // -------------------- Customer Controllers --------------------
+use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Customer\OrderController as CustomerOrderController;
 use App\Http\Controllers\Frontend\ProductController as FrontProductController;
 use App\Http\Controllers\Customer\DashboardController as CustomerDashboardController;
@@ -354,6 +355,8 @@ Route::middleware(['auth', 'role:customer'])
     ->prefix('account')
     ->name('customer.')
     ->group(function () {
+
+
 
         // ✅✅ INVOICES ROUTES (مكانها الصح هنا)
         Route::get('/invoices/{invoice}', [CustomerInvoiceController::class, 'view'])

@@ -86,7 +86,7 @@
 
                             {{-- FORM ADD ADDRESS (أول مرة بس) --}}
                             <form action="{{ route('frontend.checkout.storeAddress') }}" method="POST"
-                                  class="border rounded p-3 mb-4">
+                                class="border rounded p-3 mb-4">
                                 @csrf
 
                                 <div class="row g-3">
@@ -136,7 +136,7 @@
                                     <div class="col-12">
                                         <label class="form-label small">Address line 1</label>
                                         <input type="text" name="address_line1" class="form-control form-control-sm"
-                                               required>
+                                            required>
                                     </div>
 
                                     <div class="col-12">
@@ -177,7 +177,7 @@
                                         <div class="col-md-6">
                                             <label class="form-label small">First name</label>
                                             <input type="text" name="first_name" class="form-control form-control-sm"
-                                                   required>
+                                                required>
                                         </div>
 
                                         <div class="col-md-6">
@@ -220,7 +220,7 @@
                                         <div class="col-12">
                                             <label class="form-label small">Address line 1</label>
                                             <input type="text" name="address_line1" class="form-control form-control-sm"
-                                                   required>
+                                                required>
                                         </div>
 
                                         <div class="col-12">
@@ -255,8 +255,8 @@
                                             <label
                                                 class="address-card {{ isset($selectedAddress) && $address->id == $selectedAddress->id ? 'active' : '' }}">
                                                 <input type="radio" name="address_id" value="{{ $address->id }}"
-                                                       class="d-none js-address-radio"
-                                                       {{ isset($selectedAddress) && $address->id == $selectedAddress->id ? 'checked' : '' }}>
+                                                    class="d-none js-address-radio"
+                                                    {{ isset($selectedAddress) && $address->id == $selectedAddress->id ? 'checked' : '' }}>
 
                                                 <div class="address-label">
                                                     {{ $address->first_name }} {{ $address->last_name }}
@@ -286,15 +286,15 @@
 
                     @if ($shippingMethods && $shippingMethods->count())
                         <form action="{{ route('frontend.checkout.selectShipping') }}" method="POST"
-                              id="shipping-form">
+                            id="shipping-form">
                             @csrf
 
                             <div class="border rounded p-3">
                                 @foreach ($shippingMethods as $method)
                                     <div class="form-check mb-2">
                                         <input type="radio" name="shipping_method_id" value="{{ $method->id }}"
-                                               class="form-check-input js-shipping-radio"
-                                               {{ isset($selectedShipping) && $selectedShipping->id == $method->id ? 'checked' : '' }}>
+                                            class="form-check-input js-shipping-radio"
+                                            {{ isset($selectedShipping) && $selectedShipping->id == $method->id ? 'checked' : '' }}>
                                         <label class="form-check-label">
                                             {{ $method->name }} – (${{ number_format($method->price, 2) }})
                                         </label>
@@ -319,8 +319,8 @@
                             {{-- PayPal (SDK) --}}
                             <div class="form-check mb-2">
                                 <input type="radio" name="payment_method" value="paypal"
-                                       class="form-check-input js-payment-radio"
-                                       {{ isset($selectedPayment) && $selectedPayment === 'paypal' ? 'checked' : '' }}>
+                                    class="form-check-input js-payment-radio"
+                                    {{ isset($selectedPayment) && $selectedPayment === 'paypal' ? 'checked' : '' }}>
                                 <label class="form-check-label">
                                     PayPal
                                 </label>
@@ -329,8 +329,8 @@
                             {{-- Omnipay (PayPal_Rest كمثال) --}}
                             <div class="form-check mb-2">
                                 <input type="radio" name="payment_method" value="omnipay_paypal"
-                                       class="form-check-input js-payment-radio"
-                                       {{ isset($selectedPayment) && $selectedPayment === 'omnipay_paypal' ? 'checked' : '' }}>
+                                    class="form-check-input js-payment-radio"
+                                    {{ isset($selectedPayment) && $selectedPayment === 'omnipay_paypal' ? 'checked' : '' }}>
                                 <label class="form-check-label">
                                     PayPal (via Omnipay)
                                 </label>
@@ -365,6 +365,14 @@
                             <span>Subtotal</span>
                             <span>${{ number_format($subtotal, 2) }}</span>
                         </div>
+
+                        @if (!empty($discount) && $discount > 0 && !empty($coupon))
+                            <div class="d-flex justify-content-between">
+                                <span>Discount ({{ $coupon->code }})</span>
+                                <span>- ${{ number_format($discount, 2) }}</span>
+                            </div>
+                        @endif
+
 
                         <div class="d-flex justify-content-between">
                             <span>Tax</span>
@@ -427,8 +435,8 @@
                     e.preventDefault();
                     wrapper.style.display =
                         (wrapper.style.display === 'none' || wrapper.style.display === '') ?
-                            'block' :
-                            'none';
+                        'block' :
+                        'none';
                 });
             }
         });

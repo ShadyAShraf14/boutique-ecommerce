@@ -11,12 +11,20 @@ use App\Models\State;
 use App\Models\City;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Services\CouponService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class CheckoutController extends Controller
 {
-    /* ========== Helpers خاصة بالكارت والكوبونات ========== */
+    protected CouponService $couponService;
+
+    public function __construct(CouponService $couponService)
+    {
+        $this->couponService = $couponService;
+    }
+
+    /* ========== Helpers خاصة بالكارت ========== */
 
     protected function getCart(): array
     {
@@ -28,41 +36,6 @@ class CheckoutController extends Controller
         return (float) collect($cart)->sum(function ($row) {
             return $row['price'] * $row['qty'];
         });
-    }
-
-    protected function calculateDiscount(Coupon $coupon, float $subtotal): float
-    {
-        if ($coupon->type === 'fixed') {
-            return (float) min($coupon->value, $subtotal);
-        }
-
-        // percent
-        return (float) round($subtotal * ($coupon->value / 100), 2);
-    }
-
-    protected function getCouponError(Coupon $coupon, float $subtotal): ?string
-    {
-        if (!$coupon->is_active) {
-            return 'This coupon is not active.';
-        }
-
-        if ($coupon->starts_at && now()->lt($coupon->starts_at)) {
-            return 'This coupon is not valid yet.';
-        }
-
-        if ($coupon->ends_at && now()->gt($coupon->ends_at)) {
-            return 'This coupon has expired.';
-        }
-
-        if (!is_null($coupon->max_uses) && $coupon->used_count >= $coupon->max_uses) {
-            return 'This coupon has reached its usage limit.';
-        }
-
-        if (!is_null($coupon->min_order_total) && $subtotal < $coupon->min_order_total) {
-            return 'Order total is too low for this coupon.';
-        }
-
-        return null;
     }
 
     protected function calculateTax(float $amount): float
@@ -144,26 +117,8 @@ class CheckoutController extends Controller
 
         $subtotal = $this->getSubtotal($cart);
 
-        // كوبونات
-        $couponCode = session('coupon_code');
-        $coupon     = null;
-        $discount   = 0.0;
-
-        if ($couponCode) {
-            $coupon = Coupon::where('code', $couponCode)->first();
-            if ($coupon) {
-                $error = $this->getCouponError($coupon, $subtotal);
-                if ($error === null) {
-                    $discount = $this->calculateDiscount($coupon, $subtotal);
-                } else {
-                    session()->forget('coupon_code');
-                    $coupon   = null;
-                    $discount = 0.0;
-                }
-            } else {
-                session()->forget('coupon_code');
-            }
-        }
+        // ✅ Coupon (shared service)
+        [$coupon, $discount] = $this->couponService->resolveFromSession($subtotal);
 
         $taxBase      = max(0, $subtotal - $discount);
         $tax          = $this->calculateTax($taxBase);
@@ -174,7 +129,6 @@ class CheckoutController extends Controller
         $states    = State::orderBy('name')->get();
         $cities    = City::orderBy('name')->get();
 
-        // وسيلة الدفع المختارة من السيشن
         $selectedPayment = session('checkout_payment_method', 'paypal');
 
         return view('Frontend.pages.checkout', compact(
@@ -221,7 +175,7 @@ class CheckoutController extends Controller
             return back()->with('error', 'Invalid coupon code.');
         }
 
-        $error = $this->getCouponError($coupon, $subtotal);
+        $error = $this->couponService->getCouponError($coupon, $subtotal);
 
         if ($error !== null) {
             return back()->with('error', $error);
@@ -256,8 +210,6 @@ class CheckoutController extends Controller
 
         return back();
     }
-
-    /* ========== إضافة عنوان جديد من صفحة Checkout ========== */
 
     public function storeAddress(Request $request)
     {
@@ -294,8 +246,6 @@ class CheckoutController extends Controller
             ->with('success', 'Address added successfully.');
     }
 
-    /* ========== اختيار طريقة الشحن ========== */
-
     public function selectShipping(Request $request)
     {
         $request->validate([
@@ -310,11 +260,8 @@ class CheckoutController extends Controller
         return back()->with('success', 'Shipping cost is applied successfully');
     }
 
-    /* ========== اختيار وسيلة الدفع ========== */
-
     public function selectPayment(Request $request)
     {
-        // دلوقتي عندنا طريقتين: paypal و omnipay_paypal
         $data = $request->validate([
             'payment_method' => 'required|in:paypal,omnipay_paypal',
         ]);
@@ -323,8 +270,6 @@ class CheckoutController extends Controller
 
         return back()->with('success', 'Payment method selected successfully.');
     }
-
-    /* ========== إنشاء الطلب عند الضغط على Place order ========== */
 
     public function placeOrder(Request $request)
     {
@@ -355,26 +300,8 @@ class CheckoutController extends Controller
 
         $subtotal = $this->getSubtotal($cart);
 
-        $couponCode = session('coupon_code');
-        $coupon     = null;
-        $discount   = 0.0;
-
-        if ($couponCode) {
-            $coupon = Coupon::where('code', $couponCode)->first();
-
-            if ($coupon) {
-                $error = $this->getCouponError($coupon, $subtotal);
-                if ($error === null) {
-                    $discount = $this->calculateDiscount($coupon, $subtotal);
-                } else {
-                    session()->forget('coupon_code');
-                    $coupon   = null;
-                    $discount = 0.0;
-                }
-            } else {
-                session()->forget('coupon_code');
-            }
-        }
+        // ✅ Coupon (shared service)
+        [$coupon, $discount] = $this->couponService->resolveFromSession($subtotal);
 
         $taxBase      = max(0, $subtotal - $discount);
         $tax          = $this->calculateTax($taxBase);
@@ -413,9 +340,6 @@ class CheckoutController extends Controller
 
             DB::commit();
 
-            // 🟡 ما نفرّغش الكارت هنا لوسائل الدفع الأونلاين
-            // التفريغ بيتم بعد نجاح الدفع في PayPal / Omnipay
-
             if ($paymentMethod === 'paypal') {
                 return redirect()->route('payment.paypal.redirect', $order);
             }
@@ -424,7 +348,6 @@ class CheckoutController extends Controller
                 return redirect()->route('payment.omnipay.redirect', $order);
             }
 
-            // لو فيه طريقة دفع Offline (مثلاً Cash on delivery) نفضّي الكارت هنا
             session()->forget([
                 'cart',
                 'coupon_code',

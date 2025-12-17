@@ -12048,9 +12048,9 @@ a.text-hover-dark:focus, a.text-hover-dark:hover {
   position: relative;
 }
 
-.headings-font-family {
+/* .headings-font-family {
   font-family: !important;
-}
+} */
 
 .no-select {
   cursor: default;
@@ -12208,3 +12208,42 @@ STYLE SWITCHER FOR DEMO
 #style-switch h4, #style-switch .h4 {
   color: #495057;
 }
+
+/* ===========================
+   FINAL FIX - CUSTOMER DROPDOWN
+   =========================== */
+
+.header,
+.navbar,
+.navbar-collapse {
+  overflow: visible !important;
+}
+
+/* المرجع */
+.customer-dropdown {
+  position: relative !important;
+}
+
+/* المنيو */
+.customer-menu {
+  position: absolute !important;
+  top: calc(100% + 6px) !important;
+  right: 0 !important;
+  left: auto !important;
+
+  transform: none !important;
+  inset: auto !important;
+  translate: none !important;
+
+  float: none !important;
+  display: none;
+
+  margin: 0 !important;
+  z-index: 999999 !important;
+}
+
+/* لما تتفتح */
+.customer-menu.show {
+  display: block !important;
+}
+

@@ -1,19 +1,20 @@
-{{-- resources/views/Backend/pages/coupons/_form.blade.php --}}
-
 @csrf
 
 <div class="form-group">
     <label>Code</label>
-    <input type="text" name="code" class="form-control"
-           value="{{ old('code', $coupon->code ?? '') }}" required>
+    <input type="text"
+           name="code"
+           class="form-control"
+           value="{{ old('code', $coupon->code ?? '') }}"
+           required
+           oninput="this.value = this.value.toUpperCase().trim();">
+    <small class="text-muted">مثال: SAVE50 / NEWYEAR</small>
 </div>
 
 <div class="form-group">
     <label>Type</label>
     <select name="type" class="form-control" required>
-        @php
-            $type = old('type', $coupon->type ?? 'fixed');
-        @endphp
+        @php $type = old('type', $coupon->type ?? 'fixed'); @endphp
         <option value="fixed"   {{ $type === 'fixed' ? 'selected' : '' }}>Fixed</option>
         <option value="percent" {{ $type === 'percent' ? 'selected' : '' }}>Percent</option>
     </select>
@@ -23,7 +24,9 @@
     <label>Value</label>
     <input type="number" step="0.01" name="value" class="form-control"
            value="{{ old('value', $coupon->value ?? '') }}" required>
-    <small class="text-muted">لو النوع Percent هيتفسّر كنسبة %</small>
+    <small class="text-muted">
+        لو النوع Percent: اكتب رقم من 1 إلى 100 (مثال 10 = 10%)
+    </small>
 </div>
 
 <div class="form-group">
@@ -41,18 +44,25 @@
 
 <div class="form-group">
     <label>Starts At</label>
-    <input type="datetime-local" name="starts_at" class="form-control"
+    <input type="datetime-local"
+           name="starts_at"
+           class="form-control"
            value="{{ old('starts_at', isset($coupon->starts_at) ? $coupon->starts_at->format('Y-m-d\TH:i') : '') }}">
 </div>
 
 <div class="form-group">
     <label>Ends At</label>
-    <input type="datetime-local" name="ends_at" class="form-control"
+    <input type="datetime-local"
+           name="ends_at"
+           class="form-control"
            value="{{ old('ends_at', isset($coupon->ends_at) ? $coupon->ends_at->format('Y-m-d\TH:i') : '') }}">
 </div>
 
 <div class="form-group form-check">
-    <input type="checkbox" name="is_active" value="1" class="form-check-input"
+    <input type="checkbox"
+           name="is_active"
+           value="1"
+           class="form-check-input"
            id="is_active"
            {{ old('is_active', $coupon->is_active ?? true) ? 'checked' : '' }}>
     <label class="form-check-label" for="is_active">Active</label>

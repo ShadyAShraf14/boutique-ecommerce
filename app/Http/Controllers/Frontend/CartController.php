@@ -4,20 +4,18 @@ namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Services\CouponService;
 use Illuminate\Http\Request;
 
 class CartController extends Controller
 {
     public function __construct()
     {
-        // نقفل الإضافة/التعديل/الحذف لغير المسجلين
-        // ونسيب عرض صفحة الكارت public (لو عايزها كذلك)
         $this->middleware('auth')->except(['index']);
     }
 
     protected function getCart(): array
     {
-        // شكل الكارت: [ product_id => [id, name, price, qty, image] ]
         return session()->get('cart', []);
     }
 
@@ -26,25 +24,28 @@ class CartController extends Controller
         session(['cart' => $cart]);
     }
 
-    /**
-     * عرض صفحة الكارت
-     */
-    public function index()
+    public function index(CouponService $couponService)
     {
         $cart = $this->getCart();
 
-        $subtotal = collect($cart)->sum(function ($item) {
+        $subtotal = (float) collect($cart)->sum(function ($item) {
             return $item['price'] * $item['qty'];
         });
 
-        $total = $subtotal; // لحد ما نضيف شحن/خصم
+        // ✅ apply coupon (if exists) using shared service
+        [$coupon, $discount] = $couponService->resolveFromSession($subtotal);
 
-        return view('Frontend.pages.cart', compact('cart', 'subtotal', 'total'));
+        $total = max(0, $subtotal - $discount);
+
+        return view('Frontend.pages.cart', compact(
+            'cart',
+            'subtotal',
+            'coupon',
+            'discount',
+            'total'
+        ));
     }
 
-    /**
-     * إضافة منتج للكارت
-     */
     public function add(Request $request, Product $product)
     {
         $qty  = (int) $request->input('qty', 1);
@@ -55,10 +56,8 @@ class CartController extends Controller
         $cart = $this->getCart();
 
         if (isset($cart[$product->id])) {
-            // المنتج موجود: زوّد الكمية
             $cart[$product->id]['qty'] += $qty;
         } else {
-            // أول مرة يتضاف
             $cart[$product->id] = [
                 'id'    => $product->id,
                 'name'  => $product->name,
@@ -74,9 +73,6 @@ class CartController extends Controller
         return back()->with('success', 'Product added to cart');
     }
 
-    /**
-     * تعديل الكمية من صفحة الكارت
-     */
     public function update(Request $request, Product $product)
     {
         $cart = $this->getCart();
@@ -93,9 +89,6 @@ class CartController extends Controller
         return redirect()->route('frontend.cart.index');
     }
 
-    /**
-     * حذف منتج من الكارت
-     */
     public function remove(Product $product)
     {
         $cart = $this->getCart();
@@ -108,12 +101,12 @@ class CartController extends Controller
         return redirect()->route('frontend.cart.index');
     }
 
-    /**
-     * تفريغ الكارت
-     */
     public function clear()
     {
         $this->saveCart([]);
+
+        // لو فضّيت الكارت، شيل الكوبون كمان عشان يبقى منطقي
+        session()->forget('coupon_code');
 
         return redirect()->route('frontend.cart.index');
     }

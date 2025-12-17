@@ -1,5 +1,3 @@
-{{-- resources/views/Backend/pages/coupons/index.blade.php --}}
-
 @extends('Backend.inc.master')
 
 @section('content')
@@ -44,27 +42,20 @@
                                 @endif
                             </td>
                             <td>
-                                @if($coupon->min_order_total)
-                                    {{ number_format($coupon->min_order_total, 2) }}
-                                @else
-                                    -
-                                @endif
+                                {{ $coupon->min_order_total ? number_format($coupon->min_order_total, 2) : '-' }}
                             </td>
                             <td>
-                                {{ $coupon->used_count }}
-                                /
-                                {{ $coupon->max_uses ?? '∞' }}
+                                {{ $coupon->used_count }} / {{ $coupon->max_uses ?? '∞' }}
                             </td>
                             <td>
-                                <span class="badge badge-{{ $coupon->is_active ? 'success' : 'secondary' }}">
-                                    {{ $coupon->is_active ? 'Active' : 'Inactive' }}
+                                <span class="badge badge-{{ $coupon->status_badge_class }}">
+                                    {{ $coupon->status_label }}
                                 </span>
                             </td>
                             <td>{{ $coupon->starts_at?->format('Y-m-d') ?? '-' }}</td>
                             <td>{{ $coupon->ends_at?->format('Y-m-d') ?? '-' }}</td>
                             <td>
-                                <a href="{{ route('admin.coupons.show', $coupon) }}"
-                                   class="btn btn-sm btn-info">View</a>
+                                <a href="{{ route('admin.coupons.show', $coupon) }}" class="btn btn-sm btn-info">View</a>
 
                                 <a href="{{ route('admin.coupons.edit', $coupon) }}"
                                    class="btn btn-sm btn-outline-primary">Edit</a>
